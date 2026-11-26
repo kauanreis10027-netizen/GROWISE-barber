@@ -3,9 +3,15 @@ import { useEffect, useState } from 'react'
 
 export function navigate(to, replace = false) {
   if (to === window.location.pathname + window.location.search) return
-  window.history[replace ? 'replaceState' : 'pushState']({}, '', to)
+  const idx = (window.history.state?.gwb || 0) + (replace ? 0 : 1)
+  window.history[replace ? 'replaceState' : 'pushState']({ gwb: idx }, '', to)
   window.dispatchEvent(new PopStateEvent('popstate'))
   window.scrollTo({ top: 0 })
+}
+/** voltar: tela anterior do app; se o app foi aberto direto por um link, vai para a tela inicial */
+export function goBack(fallback = '/') {
+  if ((window.history.state?.gwb || 0) > 0) window.history.back()
+  else navigate(fallback)
 }
 export function useLocation() {
   const [loc, setLoc] = useState({ path: window.location.pathname, search: window.location.search })

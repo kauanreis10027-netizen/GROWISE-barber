@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { supabase } from './supabase.js'
 import { authMsg, useAuth } from './auth.jsx'
-import { Link, navigate, param } from './router.jsx'
+import { Link, goBack, navigate, param } from './router.jsx'
 import { maskPhone, phoneOk } from './util.js'
 import { Footer, Icon, Notice } from './ui.jsx'
 
@@ -11,7 +11,7 @@ const back = (search) => { const v = param(search, 'volta'); return v && /^\/[a-
 function Shell({ title, sub, children }) {
   return (
     <div className="wrap app auth">
-      <header className="topbar"><button type="button" className="round" aria-label="Voltar" onClick={() => (window.history.length > 1 ? window.history.back() : navigate('/'))}><Icon name="back" /></button><span /><span className="round ghost" aria-hidden="true" /></header>
+      <header className="topbar"><button type="button" className="round" aria-label="Voltar" onClick={() => goBack()}><Icon name="back" /></button><span /><span className="round ghost" aria-hidden="true" /></header>
       <div className="auth-head"><span className="brand-mark"><Icon name="scissors" /></span><h1 className="h1">{title}</h1>{sub && <p className="muted">{sub}</p>}</div>
       {children}
       <Footer />

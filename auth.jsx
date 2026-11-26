@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
       const r = await supabase.rpc('barber_me_save_profile', { p_full_name: data.profile.full_name || session.user.user_metadata.full_name || null, p_phone: pend })
       if (!r.error) data.profile = r.data
     }
-    if (data.profile.theme && data.profile.theme !== 'system' && getTheme() === 'system') setTheme(data.profile.theme)
+    if (data.profile.theme && data.profile.theme !== 'system' && data.profile.theme !== getTheme()) setTheme(data.profile.theme)   // tema escolhido na conta vale em todos os aparelhos
     setMe(data); return data
   }, [session])
 

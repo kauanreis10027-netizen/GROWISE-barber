@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { book, getPage, getSlots } from './api.js'
 import { useAuth } from './auth.jsx'
-import { Link, navigate } from './router.jsx'
+import { Link, goBack, navigate } from './router.jsx'
 import { addDays, brl, cancelRule, dayParts, digits, duration, initials, load, loadSession, longDay, maskPhone, phoneOk, save, saveSession } from './util.js'
 import Success from './Success.jsx'
 import { Footer, Icon, Notice } from './ui.jsx'
@@ -136,7 +136,7 @@ export default function Booking({ slug }) {
 
   const top = (title) => (
     <header className="topbar">
-      <button type="button" className="round" aria-label="Voltar" onClick={() => (window.history.length > 1 ? window.history.back() : navigate('/'))}><Icon name="back" /></button>
+      <button type="button" className="round" aria-label="Voltar" onClick={() => goBack()}><Icon name="back" /></button>
       <h1 className="top-title">{title}</h1>
       <span className="round ghost" aria-hidden="true" />
     </header>
