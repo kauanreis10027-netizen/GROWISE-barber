@@ -282,3 +282,16 @@ form { display: flex; flex-direction: column; gap: 12px; }
   .freq { grid-template-columns: 1fr 1fr; }
   .pro { width: 74px; } .avatar { width: 62px; height: 62px; }
 }
+/* semana de segunda a domingo */
+.week-head { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 8px; margin-bottom: 8px; }
+.week-head .month { margin: 0; }
+.round.sm { width: 36px; height: 36px; background: var(--surface-2); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.round.sm .ic { width: 18px; height: 18px; }
+.round:disabled { opacity: .35; cursor: default; }
+.days.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; overflow: visible; margin: 0; padding: 2px 0 8px; }
+.days.week .day { flex: none; min-width: 0; }
+.days.week .day strong { width: 40px; height: 40px; font-size: 17px; }
+.day.off strong { color: var(--muted); opacity: .55; }
+.day.off.on strong { opacity: 1; color: var(--on-accent); }
+.day.today:not(.on) strong { box-shadow: inset 0 0 0 1.5px var(--brand); }
+@media (max-width: 360px) { .days.week .day strong { width: 34px; height: 34px; font-size: 15px; } .day .wk { font-size: 12px; } }

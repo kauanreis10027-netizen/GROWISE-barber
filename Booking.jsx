@@ -9,6 +9,7 @@ import { Footer, Icon, Notice } from './ui.jsx'
 const ANY = 'any'
 const SLOT_ERRORS = ['slot_unavailable', 'outside_hours', 'in_past', 'too_soon', 'too_far', 'invalid_start', 'invalid_date']
 const period = (t) => { const h = Number(t.slice(0, 2)); return h < 12 ? 'Manhã' : h < 18 ? 'Tarde' : 'Noite' }
+const mondayOf = (iso) => { const dow = new Date(iso + 'T12:00:00Z').getUTCDay(); return addDays(iso, -((dow + 6) % 7)) }   // segunda da semana
 const monthTitle = (iso) => { const s = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(iso + 'T12:00:00Z')).replace(' de ', ' '); return s[0].toUpperCase() + s.slice(1) }
 
 /** guarda a barbearia (e as unidades da rede) para a tela inicial do app */
@@ -27,6 +28,7 @@ export default function Booking({ slug }) {
   const [serviceId, setServiceId] = useState(null)
   const [proId, setProId] = useState(null)
   const [date, setDate] = useState(null)
+  const [week, setWeek] = useState(null)   // segunda-feira da semana exibida
   const [slots, setSlots] = useState({ loading: false, list: null, error: null })
   const [slotTick, setSlotTick] = useState(0)
   const [slot, setSlot] = useState(null)
@@ -45,7 +47,7 @@ export default function Booking({ slug }) {
   useEffect(() => {
     let off = false
     setPage(null); setPageErr(null); setServiceId(null); setProId(null); setSlot(null); setDone(loadSession('gwb:feito:' + slug))
-    getPage(slug).then((p) => { if (off) return; setPage(p); setDate(p.settings.today); rememberStore(p); document.title = `Agendar · ${p.store.name}` })
+    getPage(slug).then((p) => { if (off) return; setPage(p); setDate(p.settings.today); setWeek(mondayOf(p.settings.today)); rememberStore(p); document.title = `Agendar · ${p.store.name}` })
       .catch((e) => { if (!off) setPageErr(e) })
     return () => { off = true }
   }, [slug, retry])
@@ -62,15 +64,23 @@ export default function Booking({ slug }) {
   const allowAny = !!page?.settings.allow_any_professional && pros.length > 1
   const pro = pros.find((p) => p.id === proId) || null
   const proReady = !!service && (proId === ANY || !!pro)
+  // dias em que a agenda online aceita marcar (hoje até o limite da barbearia)
+  const today = page?.settings.today
+  const lastDay = page ? addDays(today, Math.min(Math.max(Number(page.settings.max_days_ahead) || 30, 0), 365)) : null
   const days = useMemo(() => {
     if (!page) return []
-    const n = Math.min(Math.max(Number(page.settings.max_days_ahead) || 30, 0), 90)
-    return Array.from({ length: n + 1 }, (_, i) => addDays(page.settings.today, i))
-  }, [page])
+    const out = []; for (let d = today; d <= lastDay; d = addDays(d, 1)) out.push(d)
+    return out
+  }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
+  const weekDays = week ? Array.from({ length: 7 }, (_, i) => addDays(week, i)) : []
+  const bookable = (d) => !!d && d >= today && d <= lastDay
+  const canPrev = week && week > mondayOf(today)
+  const canNext = week && addDays(week, 7) <= lastDay
   const units = (page?.units || []).filter((u) => u.slug)
 
   useEffect(() => {
     if (!proReady || !date) return
+    if (!bookable(date)) { setSlots({ loading: false, list: [], error: null }); setSlot(null); return }
     let off = false
     setSlots({ loading: true, list: null, error: null }); setSlot(null)
     getSlots(slug, service.id, proId === ANY ? null : proId, date)
@@ -90,12 +100,12 @@ export default function Booking({ slug }) {
 
   async function seekNext() {
     setSeeking(true)
-    let i = days.indexOf(date) + 1
+    let i = date < today ? 0 : days.indexOf(date) + 1
     const stop = Math.min(days.length, i + 14)
     try {
       for (; i < stop; i++) {
         const r = await getSlots(slug, service.id, proId === ANY ? null : proId, days[i])
-        if (r.slots?.length) { setDate(days[i]); setSeeking(false); return }
+        if (r.slots?.length) { setDate(days[i]); setWeek(mondayOf(days[i])); setSeeking(false); return }
       }
       setSlotMsg({ type: 'info', text: i >= days.length ? 'Não há horários livres no período aberto para agendamento.' : 'Nenhum horário livre nos próximos 14 dias. Escolha uma data mais à frente ou outro profissional.' })
     } catch (e) { setSlotMsg({ type: 'error', text: e.message }) }
@@ -152,7 +162,8 @@ export default function Booking({ slug }) {
 
   const groups = []
   for (const s of slots.list || []) { const p = period(s.time); const g = groups.find((x) => x.p === p); g ? g.items.push(s) : groups.push({ p, items: [s] }) }
-  const monthOf = date || days[0]
+  const monthOf = week || today
+  const sameMonth = weekDays.length && weekDays[0].slice(0, 7) === weekDays[6].slice(0, 7)
 
   return (
     <div className="wrap">
@@ -200,10 +211,14 @@ export default function Booking({ slug }) {
 
           {service && (
             <section className="card step agenda" ref={refs.when} aria-labelledby="t-when">
-              <h2 className="month" id="t-when">{monthTitle(monthOf)}</h2>
-              <div className="days" role="radiogroup" aria-label="Dia">
-                {days.map((d) => { const p = dayParts(d); return (
-                  <button key={d} type="button" role="radio" aria-checked={date === d} aria-label={longDay(d)} className={'day' + (date === d ? ' on' : '')} onClick={() => { setDate(d); setSlotMsg(null) }}>
+              <div className="week-head">
+                <button type="button" className="round sm" aria-label="Semana anterior" disabled={!canPrev} onClick={() => setWeek(addDays(week, -7))}><Icon name="back" /></button>
+                <h2 className="month" id="t-when">{sameMonth ? monthTitle(monthOf) : `${monthTitle(weekDays[0]).split(' ')[0]} – ${monthTitle(weekDays[6])}`}</h2>
+                <button type="button" className="round sm" aria-label="Próxima semana" disabled={!canNext} onClick={() => setWeek(addDays(week, 7))}><Icon name="chevron" /></button>
+              </div>
+              <div className="days week" role="radiogroup" aria-label="Dia">
+                {weekDays.map((d) => { const p = dayParts(d); return (
+                  <button key={d} type="button" role="radio" aria-checked={date === d} aria-label={longDay(d)} className={'day' + (date === d ? ' on' : '') + (bookable(d) ? '' : ' off') + (d === today ? ' today' : '')} onClick={() => { setDate(d); setSlotMsg(null) }}>
                     <span className="wk">{p.week}</span><strong>{Number(p.day)}</strong>
                   </button>) })}
               </div>
@@ -230,8 +245,10 @@ export default function Booking({ slug }) {
                     : slots.list && slots.list.length === 0 ? (
                       <div className="none center">
                         <h3 className="h2">Nenhum horário disponível</h3>
-                        <p className="muted">Não encontramos horários disponíveis para este profissional neste dia. Experimente outra data ou escolha outro profissional.</p>
-                        {days.indexOf(date) < days.length - 1 && <button className="btn btn-primary" onClick={seekNext} disabled={seeking}>{seeking ? 'Procurando…' : 'Ver próximo dia com horário'}</button>}
+                        <p className="muted">{date < today ? 'Este dia já passou. Escolha uma data a partir de hoje.'
+                          : date > lastDay ? `A agenda online desta barbearia está aberta até ${longDay(lastDay)}.`
+                          : 'Não encontramos horários disponíveis para este profissional neste dia. Experimente outra data ou escolha outro profissional.'}</p>
+                        {date <= lastDay && days.indexOf(date) < days.length - 1 && <button className="btn btn-primary" onClick={seekNext} disabled={seeking}>{seeking ? 'Procurando…' : 'Ver próximo dia com horário'}</button>}
                       </div>
                     ) : groups.map((g) => (
                       <div key={g.p} className="slot-group">
