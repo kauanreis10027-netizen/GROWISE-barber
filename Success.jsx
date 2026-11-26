@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { brl, cancelUrl, confirmMessage, copyText, downloadIcs, firstName, googleCalendarUrl, cancelRule, waLink, whenParts } from './util.js'
 import { Footer, Icon, Notice, StoreHead } from './ui.jsx'
+import { Link } from './router.jsx'
 
 /** Tela de sucesso: resumo + WhatsApp (o cliente envia para si mesmo) + copiar link + calendário. Sem envio automático. */
 export default function Success({ b, page, onAgain }) {
@@ -50,6 +51,7 @@ export default function Success({ b, page, onAgain }) {
         </div>
 
         <Notice type="info">Guarde o link de cancelamento: é por ele que você cancela, {cancelRule(b.cancel_limit_minutes)}. Depois disso, fale com a barbearia{b.store_phone ? ` (${b.store_phone})` : ''}.</Notice>
+        {b.account && <Link className="btn btn-primary btn-lg" to="/agendamentos">Ver meus agendamentos</Link>}
         <button type="button" className="link again" onClick={onAgain}>Fazer outro agendamento</button>
       </section>
       <Footer />

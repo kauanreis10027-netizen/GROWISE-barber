@@ -1,15 +1,18 @@
 // GROWISE BARBER · chamadas às funções públicas (Edge Functions do Supabase).
 // O endereço do projeto é público; a chave secreta fica só no servidor. O navegador nunca envia o id da loja.
-const BASE = (import.meta.env.VITE_SUPABASE_URL || 'https://bhndakkaewlgwqaeijsi.supabase.co').replace(/\/$/, '') + '/functions/v1/'
+import { SUPABASE_URL, supabase } from './supabase.js'
+const BASE = SUPABASE_URL + '/functions/v1/'
 
 export class ApiError extends Error {
   constructor(code, message, status) { super(message); this.code = code; this.status = status }
 }
 
-async function call(fn, body) {
+async function call(fn, body, token) {
   let res
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = 'Bearer ' + token   // só no agendamento: o servidor valida e liga à conta do cliente
   try {
-    res = await fetch(BASE + fn, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    res = await fetch(BASE + fn, { method: 'POST', headers, body: JSON.stringify(body) })
   } catch {
     throw new ApiError('network', 'Sem conexão com a internet. Confira sua conexão e tente de novo.', 0)
   }
@@ -24,6 +27,10 @@ async function call(fn, body) {
 export const getPage = (slug) => call('barber-page', { slug })
 export const getSlots = (slug, serviceId, professionalId, date) =>
   call('barber-slots', { slug, service_id: serviceId, professional_id: professionalId || null, date })
-export const book = (payload) => call('barber-book', payload)
+export async function book(payload) {
+  let token = null
+  try { token = (await supabase.auth.getSession()).data.session?.access_token || null } catch { /* sem login */ }
+  return call('barber-book', payload, token)
+}
 export const lookup = (token) => call('barber-cancel', { token, action: 'lookup' })
 export const cancel = (token) => call('barber-cancel', { token, action: 'cancel' })
