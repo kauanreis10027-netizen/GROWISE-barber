@@ -19,16 +19,6 @@ function Shell({ title, sub, children }) {
   )
 }
 
-function GoogleBtn({ search }) {
-  const [err, setErr] = useState(null)
-  async function go() {
-    setErr(null)
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + back(search) } })
-    if (error) setErr(authMsg(error))
-  }
-  return (<><button type="button" className="btn btn-ghost btn-lg google" onClick={go}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z" /><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3a7.2 7.2 0 0 1-10.8-3.8H1.3v3.1A12 12 0 0 0 12 24z" /><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8z" /><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1A7.2 7.2 0 0 1 12 4.8z" /></svg> Continuar com Google</button>{err && <Notice type="error">{err}</Notice>}</>)
-}
-
 export function Login({ search }) {
   const [email, setEmail] = useState(''); const [pw, setPw] = useState('')
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(null)
@@ -50,8 +40,6 @@ export function Login({ search }) {
         <button className="btn btn-primary btn-lg" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
         <Link className="link center" to="/recuperar">Esqueci minha senha</Link>
       </form>
-      <div className="or"><span>ou</span></div>
-      <GoogleBtn search={search} />
       <p className="center muted">Ainda não tem conta? <Link className="link" to={'/cadastro' + (search || '')}>Criar conta</Link></p>
     </Shell>
   )
@@ -80,8 +68,6 @@ export function Signup({ search }) {
   )
   return (
     <Shell title="Criar conta" sub="Leva menos de um minuto.">
-      <GoogleBtn search={search} />
-      <div className="or"><span>ou com e-mail</span></div>
       <form className="card stack" onSubmit={submit} noValidate>
         <label className="field"><span>Nome</span><input value={f.name} onChange={set('name')} autoComplete="name" maxLength={80} /></label>
         <label className="field"><span>WhatsApp</span><input value={f.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel-national" placeholder="(27) 99999-0000" /></label>
