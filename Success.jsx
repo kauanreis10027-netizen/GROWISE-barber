@@ -1,22 +1,15 @@
 import { useState } from 'react'
-import { brl, cancelUrl, confirmMessage, copyText, downloadIcs, firstName, googleCalendarUrl, cancelRule, waLink, whenParts } from './util.js'
-import { Footer, Icon, Notice, StoreHead } from './ui.jsx'
+import { barberMessage, brl, downloadIcs, firstName, googleCalendarUrl, waLink, whenParts } from './util.js'
+import { Footer, Icon, StoreHead } from './ui.jsx'
 import { Link } from './router.jsx'
 
-/** Tela de sucesso: resumo + WhatsApp (o cliente envia para si mesmo) + copiar link + calendário. Sem envio automático. */
+/** Tela de agendamento confirmado: resumo + aviso ao WhatsApp da barbearia (envio manual) + calendário.
+ *  Aparece só logo depois de agendar; não fica guardada. Cancelamento: pela área "Meus agendamentos". */
 export default function Success({ b, page, onAgain }) {
-  const [copied, setCopied] = useState(null)
   const [cal, setCal] = useState(false)
   const w = whenParts(b.starts_at, b.timezone)
   const end = whenParts(b.ends_at, b.timezone)
-  const link = cancelUrl(b.cancel_token)
   const pg = page || { store: { address: b.address } }
-
-  async function copy() {
-    const ok = await copyText(link)
-    setCopied(ok ? 'ok' : 'fail')
-    if (ok) setTimeout(() => setCopied(null), 3000)
-  }
 
   return (
     <div className="wrap">
@@ -35,12 +28,14 @@ export default function Success({ b, page, onAgain }) {
         </div>
 
         <div className="actions">
-          <a className="btn btn-wa btn-lg" href={waLink(b.phone, confirmMessage(b, pg))} target="_blank" rel="noopener noreferrer">
-            <Icon name="whatsapp" /> Enviar confirmação pelo WhatsApp
-          </a>
-          <p className="muted small center">Abre o seu WhatsApp com os dados e o link de cancelamento. Você mesmo envia; nada é disparado automaticamente.</p>
-          <button type="button" className="btn btn-ghost" onClick={copy}><Icon name={copied === 'ok' ? 'check' : 'copy'} /> {copied === 'ok' ? 'Link copiado' : 'Copiar link de cancelamento'}</button>
-          {copied === 'fail' && <div className="manual"><span className="small muted">Não foi possível copiar. Selecione e copie:</span><input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link de cancelamento" /></div>}
+          {b.barber_whatsapp && (
+            <>
+              <a className="btn btn-wa btn-lg" href={waLink(b.barber_whatsapp, barberMessage(b))} target="_blank" rel="noopener noreferrer">
+                <Icon name="whatsapp" /> Enviar confirmação pelo WhatsApp
+              </a>
+              <p className="muted small center">Abre a conversa com a barbearia com os dados do seu agendamento. É só tocar em enviar.</p>
+            </>
+          )}
           <button type="button" className="btn btn-ghost" aria-expanded={cal} onClick={() => setCal((v) => !v)}><Icon name="calendar" /> Adicionar ao calendário</button>
           {cal && (
             <div className="cal">
@@ -50,9 +45,10 @@ export default function Success({ b, page, onAgain }) {
           )}
         </div>
 
-        <Notice type="info">Guarde o link de cancelamento: é por ele que você cancela, {cancelRule(b.cancel_limit_minutes)}. Depois disso, fale com a barbearia{b.store_phone ? ` (${b.store_phone})` : ''}.</Notice>
-        {b.account && <Link className="btn btn-primary btn-lg" to="/agendamentos">Ver meus agendamentos</Link>}
-        <button type="button" className="link again" onClick={onAgain}>Fazer outro agendamento</button>
+        {b.account
+          ? <Link className="btn btn-primary btn-lg" to="/agendamentos">Ver meus agendamentos</Link>
+          : <p className="muted small center"><Link className="link" to="/cadastro">Crie sua conta</Link> para ver e gerenciar seus próximos agendamentos.</p>}
+        <button type="button" className="link again" onClick={onAgain}>Fazer novo agendamento</button>
       </section>
       <Footer />
     </div>

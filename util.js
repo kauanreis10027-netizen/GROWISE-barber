@@ -77,21 +77,20 @@ export function limitText(min) {
 /** regra de cancelamento em texto: "até 2 horas antes do horário" | "até o horário marcado" (prazo 0) */
 export const cancelRule = (min) => (Number(min || 0) > 0 ? `até ${limitText(min)} antes do horário` : 'até o horário marcado')
 
-/** mensagem de confirmação que o cliente envia a si mesmo pelo WhatsApp */
-export function confirmMessage(b, page) {
+/** aviso de novo agendamento que o cliente envia ao WhatsApp da barbearia (envio manual, sem API) */
+export function barberMessage(b) {
   const w = whenParts(b.starts_at, b.timezone)
-  const lines = [
-    `✅ *Agendamento confirmado* · ${b.store_name}`,
+  return [
+    'Olá! Você recebeu um novo agendamento!',
     '',
-    `✂️ ${b.service_name}`,
-    b.professional_name ? `👤 ${b.professional_name}` : null,
-    `📅 ${w.date}, às ${w.time}`,
-    page?.store?.address ? `📍 ${page.store.address}` : null,
+    `Cliente: ${b.name || ''}`,
+    `Serviço: ${b.service_name}`,
+    `Profissional: ${b.professional_name || 'Sem preferência'}`,
+    `Data: ${w.date[0].toUpperCase() + w.date.slice(1)}`,
+    `Horário: ${w.time}`,
     '',
-    `Para cancelar (${cancelRule(b.cancel_limit_minutes)}):`,
-    cancelUrl(b.cancel_token),
-  ]
-  return lines.filter((l) => l !== null).join('\n')
+    'Acesse o GROWISE CONTROL para visualizar e gerenciar seus agendamentos.',
+  ].join('\n')
 }
 export const waLink = (phone, text) => `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`
 
@@ -100,11 +99,11 @@ const icsTime = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replac
 const icsEsc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 
 export function icsText(b, page) {
-  const desc = [b.professional_name ? `Profissional: ${b.professional_name}` : '', `Cancelar: ${cancelUrl(b.cancel_token)}`].filter(Boolean).join('\n')
+  const desc = [b.professional_name ? `Profissional: ${b.professional_name}` : '', b.store_name].filter(Boolean).join('\n')
   return [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GROWISE//Barber//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${b.cancel_token.slice(0, 16)}@barber.growise.com.br`,
+    `UID:${String(b.starts_at).replace(/\D/g, '')}-${Math.random().toString(36).slice(2, 10)}@growise-barber`,
     `DTSTAMP:${icsTime(new Date().toISOString())}`,
     `DTSTART:${icsTime(b.starts_at)}`,
     `DTEND:${icsTime(b.ends_at)}`,
@@ -121,7 +120,7 @@ export function googleCalendarUrl(b, page) {
     action: 'TEMPLATE',
     text: `${b.service_name} · ${b.store_name}`,
     dates: `${icsTime(b.starts_at)}/${icsTime(b.ends_at)}`,
-    details: [b.professional_name ? `Profissional: ${b.professional_name}` : '', `Cancelar: ${cancelUrl(b.cancel_token)}`].filter(Boolean).join('\n'),
+    details: [b.professional_name ? `Profissional: ${b.professional_name}` : '', b.store_name].filter(Boolean).join('\n'),
   })
   if (page?.store?.address) p.set('location', page.store.address)
   return `https://calendar.google.com/calendar/render?${p.toString()}`

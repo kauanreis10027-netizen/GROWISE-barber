@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { book, getPage, getSlots } from './api.js'
 import { useAuth } from './auth.jsx'
 import { Link, goBack, navigate } from './router.jsx'
-import { addDays, brl, cancelRule, dayParts, digits, duration, initials, load, loadSession, longDay, maskPhone, phoneOk, save, saveSession } from './util.js'
+import { addDays, brl, cancelRule, dayParts, digits, duration, initials, load, longDay, maskPhone, phoneOk, save } from './util.js'
 import Success from './Success.jsx'
 import { Footer, Icon, Notice } from './ui.jsx'
 
@@ -19,6 +19,8 @@ function rememberStore(page) {
   const out = [...add, ...list].filter((x, i, a) => x?.slug && a.findIndex((y) => y.slug === x.slug) === i).slice(0, 12)
   save('gwb:lojas', out); save('gwb:ultima-loja', page.store.slug)
 }
+
+try { Object.keys(sessionStorage).filter((k) => k.startsWith('gwb:feito:')).forEach((k) => sessionStorage.removeItem(k)) } catch { /* sem armazenamento */ }
 
 export default function Booking({ slug }) {
   const { user, me, reload } = useAuth()
@@ -40,13 +42,13 @@ export default function Booking({ slug }) {
   const [touched, setTouched] = useState(false)
   const [sending, setSending] = useState(false)
   const [formErr, setFormErr] = useState(null)
-  const [done, setDone] = useState(() => loadSession('gwb:feito:' + slug))
+  const [done, setDone] = useState(null)   // confirmação: só na memória, logo depois de agendar
   const refs = { when: useRef(null), form: useRef(null) }
   const go = (r) => setTimeout(() => r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
 
   useEffect(() => {
     let off = false
-    setPage(null); setPageErr(null); setServiceId(null); setProId(null); setSlot(null); setDone(loadSession('gwb:feito:' + slug))
+    setPage(null); setPageErr(null); setServiceId(null); setProId(null); setSlot(null); setDone(null)
     getPage(slug).then((p) => { if (off) return; setPage(p); setDate(p.settings.today); setWeek(mondayOf(p.settings.today)); rememberStore(p); document.title = `Agendar · ${p.store.name}` })
       .catch((e) => { if (!off) setPageErr(e) })
     return () => { off = true }
@@ -123,7 +125,6 @@ export default function Booking({ slug }) {
       const r = await book({ slug, service_id: service.id, professional_id: proId === ANY ? null : proId, starts_at: slot.starts_at, name: name.trim(), phone })
       save('gwb:cliente', { name: name.trim(), phone })
       const result = { ...r, phone, name: name.trim(), address: page.store.address || null, account: !!user }
-      saveSession('gwb:feito:' + slug, result)
       setDone(result); window.scrollTo({ top: 0 })
       if (user) reload()
     } catch (err) {
@@ -132,7 +133,7 @@ export default function Booking({ slug }) {
     }
     setSending(false)
   }
-  function again() { saveSession('gwb:feito:' + slug, null); setDone(null); setSlot(null); setSlotTick((t) => t + 1); window.scrollTo({ top: 0 }) }
+  function again() { setDone(null); setSlot(null); setSlotTick((t) => t + 1); window.scrollTo({ top: 0 }) }
 
   const top = (title) => (
     <header className="topbar">
