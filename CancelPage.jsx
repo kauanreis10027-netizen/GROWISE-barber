@@ -101,7 +101,7 @@ export default function CancelPage({ token }) {
         )}
         {a.status !== 'confirmed' && !result && <p className="muted small">Este agendamento não pode mais ser alterado pelo link.</p>}
 
-        {(cancelled || result) && a.store_slug && <a className="btn btn-primary btn-lg" href={`/${a.store_slug}`}>Agendar novo horário</a>}
+        {(cancelled || result) && a.store_slug && <a className="btn btn-primary btn-lg" href={`/${a.store_slug}/agendar`}>Agendar novo horário</a>}
         {a.status === 'confirmed' && a.can_cancel && a.store_phone && !ask && <div className="sub-contact">{contact}</div>}
       </section>
       <Footer />

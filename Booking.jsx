@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { book, getPage, getSlots } from './api.js'
 import { useAuth } from './auth.jsx'
 import { Link, goBack, navigate } from './router.jsx'
-import { addDays, brl, cancelRule, dayParts, digits, duration, initials, load, longDay, maskPhone, phoneOk, save } from './util.js'
+import { addDays, brl, cancelRule, dayParts, digits, duration, initials, load, longDay, maskPhone, phoneOk, save, bookPath, rememberStore } from './util.js'
 import Success from './Success.jsx'
 import { Footer, Icon, Notice } from './ui.jsx'
 
@@ -12,13 +12,6 @@ const period = (t) => { const h = Number(t.slice(0, 2)); return h < 12 ? 'Manhã
 const mondayOf = (iso) => { const dow = new Date(iso + 'T12:00:00Z').getUTCDay(); return addDays(iso, -((dow + 6) % 7)) }   // segunda da semana
 const monthTitle = (iso) => { const s = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(iso + 'T12:00:00Z')).replace(' de ', ' '); return s[0].toUpperCase() + s.slice(1) }
 
-/** guarda a barbearia (e as unidades da rede) para a tela inicial do app */
-function rememberStore(page) {
-  const list = load('gwb:lojas', [])
-  const add = [{ slug: page.store.slug, name: page.store.name, address: page.store.address || null }, ...(page.units || [])]
-  const out = [...add, ...list].filter((x, i, a) => x?.slug && a.findIndex((y) => y.slug === x.slug) === i).slice(0, 12)
-  save('gwb:lojas', out); save('gwb:ultima-loja', page.store.slug)
-}
 
 try { Object.keys(sessionStorage).filter((k) => k.startsWith('gwb:feito:')).forEach((k) => sessionStorage.removeItem(k)) } catch { /* sem armazenamento */ }
 
@@ -177,14 +170,14 @@ export default function Booking({ slug }) {
         </div>
       </section>
 
-      {!user && <div className="hint"><Icon name="menu" /><span><Link to={`/entrar?volta=/${slug}`}>Entre</Link> ou <Link to={`/cadastro?volta=/${slug}`}>crie sua conta</Link> para acompanhar seus agendamentos e avaliar o atendimento.</span></div>}
+      {!user && <div className="hint"><Icon name="menu" /><span><Link to={`/entrar?volta=${bookPath(slug)}`}>Entre</Link> ou <Link to={`/cadastro?volta=${bookPath(slug)}`}>crie sua conta</Link> para acompanhar seus agendamentos e avaliar o atendimento.</span></div>}
 
       {units.length > 1 && (
         <section className="card step" aria-labelledby="t-unit">
           <h2 className="h2" id="t-unit">Unidade</h2>
           <div className="list" role="radiogroup" aria-labelledby="t-unit">
             {units.map((u) => (
-              <button key={u.slug} type="button" role="radio" aria-checked={u.slug === slug} className={'opt' + (u.slug === slug ? ' on' : '')} onClick={() => u.slug !== slug && navigate('/' + u.slug)}>
+              <button key={u.slug} type="button" role="radio" aria-checked={u.slug === slug} className={'opt' + (u.slug === slug ? ' on' : '')} onClick={() => u.slug !== slug && navigate(bookPath(u.slug))}>
                 <span className="opt-main"><strong>{u.name}</strong>{u.address && <span className="muted small">{u.address}</span>}</span>
                 <span className="opt-side"><span className="tick" aria-hidden="true"><Icon name="check" /></span></span>
               </button>

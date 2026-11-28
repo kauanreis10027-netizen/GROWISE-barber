@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import { authMsg, meMsg, useAuth } from './auth.jsx'
 import { Link, navigate, param } from './router.jsx'
-import { brl, firstName, initials, load, maskPhone, phoneOk, waNumber, whenParts } from './util.js'
+import { bookPath, brl, firstName, initials, load, maskPhone, phoneOk, rememberStore, save, waNumber, whenParts } from './util.js'
+import { getPage } from './api.js'
 import { getTheme, setTheme } from './theme.js'
 import ReviewSheet, { Stars, TAGS } from './ReviewSheet.jsx'
 import { Footer, Icon, Notice } from './ui.jsx'
@@ -38,15 +39,23 @@ function useReviewPrompt() {
 
 function Welcome() {
   const last = load('gwb:ultima-loja', null)
+  const store = load('gwb:lojas', []).find((x) => x.slug === last)
   return (
     <div className="wrap app">
+      {store && (
+        <Link className="banner" to={bookPath(store.slug)}>
+          <span className="banner-logo">{initials(store.name)}</span>
+          <span className="banner-name">{store.name}</span>
+          <span className="btn btn-light">Agendar agora</span>
+        </Link>
+      )}
       <section className="welcome card center">
         <span className="brand-mark"><Icon name="scissors" /></span>
         <h1 className="h1">Seu horário na barbearia, sem fila e sem ligação</h1>
         <p className="muted">Crie sua conta para agendar mais rápido, acompanhar seus horários, ver seu histórico e avaliar os atendimentos.</p>
         <Link className="btn btn-primary btn-lg" to="/cadastro">Criar conta</Link>
         <Link className="btn btn-ghost btn-lg" to="/entrar">Já tenho conta</Link>
-        {last ? <Link className="link" to={'/' + last}>Agendar sem conta</Link> : <p className="muted small">Para agendar sem conta, use o link que a sua barbearia enviou.</p>}
+        {last ? <Link className="link" to={bookPath(last)}>Agendar sem conta</Link> : <p className="muted small">Para agendar sem conta, use o link que a sua barbearia enviou.</p>}
       </section>
       <Footer />
     </div>
@@ -65,7 +74,8 @@ export function Home() {
   const lastAny = next || list[0]
   const stores = [...list.map((a) => ({ slug: a.store_slug, name: a.store_name, address: a.store_address })), ...load('gwb:lojas', [])]
     .filter((x, i, arr) => x?.slug && arr.findIndex((y) => y.slug === x.slug) === i)
-  const mainStore = lastAny ? { slug: lastAny.store_slug, name: lastAny.store_name } : stores[0]
+  const focus = stores.find((x) => x.slug === load('gwb:ultima-loja', null))   // a barbearia do último link aberto
+  const mainStore = focus || (lastAny ? { slug: lastAny.store_slug, name: lastAny.store_name } : stores[0])
   const name = firstName(me.profile.full_name) || 'cliente'
   return (
     <div className="wrap app">
@@ -105,7 +115,7 @@ export function Home() {
       </section>
 
       {mainStore && (
-        <Link className="banner" to={'/' + mainStore.slug}>
+        <Link className="banner" to={bookPath(mainStore.slug)}>
           <span className="banner-logo">{initials(mainStore.name)}</span>
           <span className="banner-name">{mainStore.name}</span>
           <span className="btn btn-light">Novo agendamento</span>
@@ -117,7 +127,7 @@ export function Home() {
         {stores.length === 0 ? <p className="muted card">Abra o link de agendamento da sua barbearia uma vez e ela aparece aqui.</p> : (
           <div className="units">
             {stores.map((s) => (
-              <Link key={s.slug} className="unit" to={'/' + s.slug}>
+              <Link key={s.slug} className="unit" to={bookPath(s.slug)}>
                 <span className="logo md">{initials(s.name)}</span>
                 <span className="grow"><strong>{s.name}</strong>{s.address && <span className="muted small clamp1">{s.address}</span>}</span>
                 <Icon name="chevron" />
@@ -155,7 +165,7 @@ function ApptCard({ a, onChanged, onReview }) {
       {err && <Notice type="error">{err}</Notice>}
       <div className="row-btns">
         {a.status === 'completed' && !a.review && <button className="btn btn-primary" onClick={() => onReview(a)}><Icon name="star" /> Avaliar</button>}
-        {a.status === 'completed' && a.store_slug && <Link className="btn btn-ghost" to={'/' + a.store_slug}>Agendar de novo</Link>}
+        {a.status === 'completed' && a.store_slug && <Link className="btn btn-ghost" to={bookPath(a.store_slug)}>Agendar de novo</Link>}
         {isUpcoming(a) && a.can_cancel && !ask && <button className="btn btn-danger" onClick={() => setAsk(true)}>Cancelar</button>}
         {isUpcoming(a) && !a.can_cancel && a.store_phone && <a className="btn btn-ghost" href={`https://wa.me/${waNumber(a.store_phone)}`} target="_blank" rel="noopener noreferrer"><Icon name="whatsapp" /> Falar com a barbearia</a>}
       </div>
@@ -201,7 +211,7 @@ export function Appointments({ search }) {
       )}
       <div className="segs" role="tablist"><TabBtn id="proximos" label="Próximos" /><TabBtn id="concluidos" label="Histórico" /><TabBtn id="cancelados" label="Cancelados" /></div>
       {groups[tab].length === 0 ? (
-        <div className="card center empty-state"><p className="muted">{empty[tab]}</p>{tab === 'proximos' && last && <Link className="btn btn-primary" to={'/' + last}>Novo agendamento</Link>}</div>
+        <div className="card center empty-state"><p className="muted">{empty[tab]}</p>{tab === 'proximos' && last && <Link className="btn btn-primary" to={bookPath(last)}>Novo agendamento</Link>}</div>
       ) : groups[tab].map((a) => <ApptCard key={a.id} a={a} onChanged={reload} onReview={setReview} />)}
       {review && <ReviewSheet a={review} onClose={() => setReview(null)} onDone={() => { setReview(null); reload() }} />}
     </div>
@@ -338,3 +348,25 @@ function Prefs() {
   )
 }
 
+
+/** /nome-da-barbearia: guarda a barbearia e abre a tela inicial (com o menu), em vez de cair direto no agendamento */
+export function StoreEntry({ slug }) {
+  const [err, setErr] = useState(null)
+  useEffect(() => {
+    let off = false
+    save('gwb:ultima-loja', slug)
+    getPage(slug)
+      .then((p) => { if (off) return; rememberStore(p); navigate('/', true) })
+      .catch((e) => { if (!off) setErr(e) })
+    return () => { off = true }
+  }, [slug])
+  if (err) {
+    return (
+      <div className="wrap app">
+        <Notice type="error">{err?.code === 'not_found' || err?.code === 'not_available' ? 'Não encontramos essa barbearia. Confira o link que você recebeu.' : 'Não foi possível abrir a barbearia agora. Verifique sua internet e tente de novo.'}</Notice>
+        <Link className="btn btn-ghost" to="/">Ir para o início</Link>
+      </div>
+    )
+  }
+  return <div className="wrap app"><div className="skeleton head" /><div className="skeleton" /><p className="sr-only" role="status">Carregando…</p></div>
+}

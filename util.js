@@ -157,3 +157,14 @@ export function loadSession(key) {
 export function saveSession(key, value) {
   try { value === null ? window.sessionStorage.removeItem(key) : window.sessionStorage.setItem(key, JSON.stringify(value)) } catch { /* ok */ }
 }
+
+/** link da barbearia (/nome) abre a tela inicial; o agendamento fica em /nome/agendar */
+export const bookPath = (slug) => `/${slug}/agendar`
+
+/** guarda a barbearia (e as unidades da rede) para a tela inicial do app */
+export function rememberStore(page) {
+  const list = load('gwb:lojas', [])
+  const add = [{ slug: page.store.slug, name: page.store.name, address: page.store.address || null }, ...(page.units || [])]
+  const out = [...add, ...list].filter((x, i, a) => x?.slug && a.findIndex((y) => y.slug === x.slug) === i).slice(0, 12)
+  save('gwb:lojas', out); save('gwb:ultima-loja', page.store.slug)
+}
